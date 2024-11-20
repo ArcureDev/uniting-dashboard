@@ -194,6 +194,11 @@ export type SearchType = `${SearchTypeEnum}`;
 
 export type DateType = 'FROM' | 'TODAY';
 
+export type DashboardParams = {
+  startDate: Date | string
+  endDate: Date | string
+};
+
 export type SimpleSearchFiltersParams = {
   term: string | undefined;
   city: string | undefined;

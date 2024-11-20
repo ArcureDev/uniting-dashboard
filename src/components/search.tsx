@@ -2,45 +2,46 @@ import {useQuery} from "@tanstack/react-query";
 import {Dispatch, FormEvent, SetStateAction, useContext, useEffect, useState} from "react";
 import {useForm} from "@tanstack/react-form";
 import {buildHttpRequest, httpClient, toHttpParams} from "../utils/api.ts";
-import {Gathering, Page, SimpleSearchFiltersParams} from "../utils/types.ts";
+import {DashboardParams} from "../utils/types.ts";
 import {ThemeContext} from "../providers/context.tsx";
+import {getIsoDate, getTomorrowDate} from "../utils/utils.ts";
+import {ChartShallowDataShape} from "reaviz";
 
-export const defaultSimpleSearchFilterParams = () : SimpleSearchFiltersParams => {
+const defaultDashboardParams = () : DashboardParams => {
     return {
-        term: '',
-        city: '',
-        distance: 0
+        startDate: getIsoDate(new Date()),
+        endDate: getIsoDate(getTomorrowDate())
     }
 }
 
-export default function Search(props: Readonly<{ setGatherings: Dispatch<SetStateAction<Page<Gathering> | null>> }>) {
-    const {setGatherings} = props;
+export default function Search(props: Readonly<{ setData: Dispatch<SetStateAction<ChartShallowDataShape[] | undefined>> }>) {
+    const {setData} = props;
     const themeContext = useContext(ThemeContext);
-    const [params, setParams] = useState<SimpleSearchFiltersParams>(defaultSimpleSearchFilterParams);
+    const [params, setParams] = useState<DashboardParams | undefined>(undefined);
 
-    const searchQuery = useQuery<Page<Gathering>>({
+    const searchQuery = useQuery<ChartShallowDataShape[]>({
         queryKey: ['search', params],
         queryFn: async () => {
-            // , {searchParams: toHttpParams(params)}
-            return await httpClient(buildHttpRequest('/search')).json();
+            const options = params ? {searchParams: toHttpParams(params)} : {};
+            return await httpClient(buildHttpRequest('/dashboard'), options).json();
         },
         enabled: false
     });
 
     useEffect(() => {
         if (!searchQuery.data) return;
-        setGatherings(searchQuery.data);
-    }, [setGatherings, searchQuery.data]);
+        setData(searchQuery.data);
+    }, [setData, searchQuery.data]);
 
-    const form = useForm<SimpleSearchFiltersParams>({
-        defaultValues: {
-            term: '',
-            city: '',
-            distance: 0
-        },
+    useEffect(() => {
+        if (!params) return;
+        searchQuery.refetch();
+    }, [params]);
+
+    const form = useForm<DashboardParams>({
+        defaultValues: defaultDashboardParams(),
         onSubmit: async ({value}) => {
             setParams(value);
-            searchQuery.refetch();
         }
     });
 
@@ -53,41 +54,29 @@ export default function Search(props: Readonly<{ setGatherings: Dispatch<SetStat
     return (
         <>
             <div>Search avec le thème {themeContext}</div>
-            {/* method="get"*/}
             <form onSubmit={submitSearchForm}>
                 <form.Field
-                    name="term"
+                    name="startDate"
                     children={(field) => (
                         <input
+                            type={"date"}
                             name={field.name}
-                            value={field.state.value}
+                            value={getIsoDate(field.state.value)}
                             onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
+                            onChange={(e) => field.handleChange(getIsoDate(e.target.valueAsDate))}
                         />
                     )}
                 />
 
                 <form.Field
-                    name="city"
+                    name="endDate"
                     children={(field) => (
                         <input
+                            type={"date"}
                             name={field.name}
-                            value={field.state.value}
+                            value={getIsoDate(field.state.value)}
                             onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.value)}
-                        />
-                    )}
-                />
-
-                <form.Field
-                    name="distance"
-                    children={(field) => (
-                        <input
-                            type="number"
-                            name={field.name}
-                            value={field.state.value}
-                            onBlur={field.handleBlur}
-                            onChange={(e) => field.handleChange(e.target.valueAsNumber)}
+                            onChange={(e) => field.handleChange(getIsoDate(e.target.valueAsDate))}
                         />
                     )}
                 />
